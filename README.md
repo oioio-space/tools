@@ -92,13 +92,19 @@ forensic regripper -input rip.txt -format json -pretty -sort -timestamp -plugin 
 
 | Field        | Description                                                        |
 |--------------|--------------------------------------------------------------------|
-| `timestamp`  | RFC3339/UTC; the event's own time, else the key's `LastWrite`      |
+| `timestamp`  | full RFC3339/UTC; the event's own time, else the key's `LastWrite` |
+| `date`       | UTC date part of `timestamp` (`YYYY-MM-DD`), as a separate field   |
+| `time`       | UTC time part of `timestamp` (`HH:MM:SS`), as a separate field     |
 | `type`       | `key` (key anchor), `event` (timestamp anchor) or `info`           |
 | `plugin`     | RegRipper plugin the event belongs to                             |
 | `key_path`   | registry key in scope                                              |
 | `last_write` | `LastWrite` time of the enclosing key (RFC3339/UTC)               |
 | `line`       | 1-based line number where the event's anchor starts               |
 | `message`    | the event body (following lines joined; never dropped)            |
+
+`timestamp` (combined) and `date` + `time` (split) both refer to the same
+instant in UTC; use whichever your pipeline indexes. All are empty when a
+record has no timestamp. CSV columns follow the same order as the table above.
 
 ## Test
 

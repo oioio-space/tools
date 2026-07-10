@@ -178,6 +178,39 @@ Account Created : Wed Mar 28 09:00:00 2018 Z
 	}
 }
 
+// The timestamp is also exposed split into separate UTC date and time fields.
+func TestSplitDateAndTimeFields(t *testing.T) {
+	const in = `Software\Key
+LastWrite Time Wed Nov 25 20:07:09 2015 (UTC)
+  value
+`
+	recs := parse(t, in)
+	if len(recs) != 1 {
+		t.Fatalf("want 1 record, got %d", len(recs))
+	}
+	r := recs[0]
+	if r.Timestamp != "2015-11-25T20:07:09Z" {
+		t.Errorf("timestamp = %q", r.Timestamp)
+	}
+	if r.Date != "2015-11-25" {
+		t.Errorf("date = %q, want 2015-11-25", r.Date)
+	}
+	if r.Time != "20:07:09" {
+		t.Errorf("time = %q, want 20:07:09", r.Time)
+	}
+}
+
+// Records without a timestamp leave the date and time fields empty.
+func TestSplitFieldsEmptyWithoutTimestamp(t *testing.T) {
+	recs := parse(t, "just a line with no time\n")
+	if len(recs) != 1 {
+		t.Fatalf("want 1 record, got %d", len(recs))
+	}
+	if recs[0].Date != "" || recs[0].Time != "" {
+		t.Errorf("expected empty date/time, got %q / %q", recs[0].Date, recs[0].Time)
+	}
+}
+
 func TestPluginBannerResetsContext(t *testing.T) {
 	const in = `Launching userassist v.20160528
 userassist v.20160528

@@ -45,8 +45,8 @@ func lessFunc(records []Record, field string) (func(i, j int) bool, error) {
 	switch field {
 	case "timestamp", "time", "ts":
 		return func(i, j int) bool {
-			ti, oki := records[i].Time()
-			tj, okj := records[j].Time()
+			ti, oki := records[i].parsedTS()
+			tj, okj := records[j].parsedTS()
 			// Records without a timestamp sort after those with one, so the
 			// timeline stays clean at the top for ascending order.
 			if oki != okj {

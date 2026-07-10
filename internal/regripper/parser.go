@@ -24,9 +24,14 @@ import (
 
 // Record is a single normalized event extracted from rip.pl output.
 type Record struct {
-	// Timestamp is RFC3339/UTC, ready for SIEM ingestion. For a key event it is
-	// the key's LastWrite time; for a timestamp event it is the event's time.
+	// Timestamp is the full RFC3339/UTC value, ready for SIEM ingestion. For a
+	// key event it is the key's LastWrite time; for a timestamp event it is the
+	// event's own time.
 	Timestamp string `json:"timestamp,omitempty"`
+	// Date and Time are the same instant split into separate UTC fields
+	// (YYYY-MM-DD and HH:MM:SS) for tools/pipelines that index them apart.
+	Date string `json:"date,omitempty"`
+	Time string `json:"time,omitempty"`
 	// Type classifies the event: key, event or info.
 	Type string `json:"type"`
 	// Plugin is the RegRipper plugin the event belongs to.
@@ -54,18 +59,25 @@ const (
 	TypeInfo  = "info"  // free-standing text with no timestamp anchor
 )
 
-// Time returns the parsed timestamp and whether one is present. Used for sorting.
-func (r Record) Time() (time.Time, bool) { return r.ts, r.hasTS }
+// Layouts for the split Date and Time fields (both UTC).
+const (
+	dateLayout = "2006-01-02"
+	timeLayout = "15:04:05"
+)
+
+// parsedTS returns the parsed timestamp and whether one is present. Used for
+// sorting.
+func (r Record) parsedTS() (time.Time, bool) { return r.ts, r.hasTS }
 
 // CSVHeader returns the CSV column order for Record.
 func (Record) CSVHeader() []string {
-	return []string{"timestamp", "type", "plugin", "key_path", "last_write", "line", "message"}
+	return []string{"timestamp", "date", "time", "type", "plugin", "key_path", "last_write", "line", "message"}
 }
 
 // CSVRow returns the CSV values for Record, aligned with CSVHeader.
 func (r Record) CSVRow() []string {
 	return []string{
-		r.Timestamp, r.Type, r.Plugin, r.KeyPath, r.LastWrite,
+		r.Timestamp, r.Date, r.Time, r.Type, r.Plugin, r.KeyPath, r.LastWrite,
 		strconv.Itoa(r.Line), r.Message,
 	}
 }
@@ -137,7 +149,7 @@ func Parse(r io.Reader) ([]Record, error) {
 		if !p.active {
 			return
 		}
-		records = append(records, Record{
+		rec := Record{
 			Timestamp: p.tsStr,
 			Type:      p.recordType(),
 			Plugin:    p.plugin,
@@ -147,7 +159,12 @@ func Parse(r io.Reader) ([]Record, error) {
 			Line:      p.line,
 			ts:        p.ts,
 			hasTS:     p.hasTS,
-		})
+		}
+		if p.hasTS {
+			rec.Date = p.ts.Format(dateLayout)
+			rec.Time = p.ts.Format(timeLayout)
+		}
+		records = append(records, rec)
 		p = pending{}
 	}
 
