@@ -35,15 +35,17 @@ var tzSuffixes = []string{" (UTC)", " (GMT)", " UTC", " GMT", " Z"}
 // Layouts are tried in order against a cleaned string. Inputs without an
 // explicit zone are parsed as UTC by time.Parse.
 var layouts = []string{
-	"Mon Jan 2 15:04:05 2006", // Perl ctime (whitespace collapsed beforehand)
-	time.RFC3339,              // 2006-01-02T15:04:05Z07:00
-	time.RFC3339Nano,
-	"2006-01-02T15:04:05",
-	"2006-01-02 15:04:05.000",
-	"2006-01-02 15:04:05",
-	"2006/01/02 15:04:05",
-	"01/02/2006 15:04:05",
-	"2006-01-02",
+	"Mon Jan 2 15:04:05 2006",             // Perl ctime (whitespace collapsed beforehand)
+	time.RFC3339,                          // 2006-01-02T15:04:05Z07:00
+	time.RFC3339Nano,                      //
+	"2006-01-02 15:04:05Z07:00",           // RegRipper 3.0: "2013-06-03 15:20:46Z"
+	"2006-01-02 15:04:05.999999999Z07:00", // ...with fractional seconds
+	"2006-01-02T15:04:05",                 //
+	"2006-01-02 15:04:05.000",             //
+	"2006-01-02 15:04:05",                 //
+	"2006/01/02 15:04:05",                 //
+	"01/02/2006 15:04:05",                 //
+	"2006-01-02",                          //
 }
 
 // Clean strips decorative timezone markers and collapses internal whitespace so
