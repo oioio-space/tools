@@ -15,10 +15,10 @@ import (
 	"github.com/oioio-space/tools/internal/regripper"
 )
 
-// version is bumped on every push and shown in the top-level help and the
-// `version` subcommand. It can still be overridden at build time via
-// -ldflags "-X main.version=...".
-var version = "0.1.0"
+// version is shown in the top-level help and the `version` subcommand. This
+// default applies to a plain `go build`; the Makefile injects a git-derived,
+// auto-incrementing value via -ldflags "-X main.version=...".
+var version = "0.1.0-dev"
 
 func buildRegistry() *command.Registry {
 	r := command.NewRegistry()

@@ -29,8 +29,16 @@ same way.
 ## Build
 
 ```sh
-go build -o forensic ./cmd/forensic
+make build          # -> ./bin/forensic, with an auto-incrementing version
 ```
+
+The version is derived from git as `0.1.<commit-count>+g<short-hash>` (plus
+`-dirty` for an uncommitted tree), so it rises on every commit/push with no
+manual bump. It shows in the top-level help header and via `forensic version`.
+`make version` prints the value without building.
+
+A plain `go build -o forensic ./cmd/forensic` also works; it keeps the in-code
+default version instead of the git-derived one.
 
 ## Usage
 
