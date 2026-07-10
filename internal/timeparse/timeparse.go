@@ -82,17 +82,28 @@ func Parse(s string) (time.Time, bool) {
 // it. This is what lets us pull a LastWrite time out of a decorated line such
 // as "LastWrite Time Wed Nov 25 20:00:00 2015 (UTC)".
 func ExtractFirst(line string) (time.Time, bool) {
-	if m := ctimeRe.FindString(line); m != "" {
-		if t, ok := Parse(m); ok {
-			return t, true
+	t, _, _, ok := ExtractFirstLoc(line)
+	return t, ok
+}
+
+// ExtractFirstLoc is like ExtractFirst but also returns the byte range
+// [start,end) of the matched timestamp within line. Callers use start==0 to
+// tell an "anchor" line (a timestamp that opens an event) from a timestamp
+// buried mid-line.
+func ExtractFirstLoc(line string) (t time.Time, start, end int, ok bool) {
+	// Prefer whichever known format appears earliest in the line.
+	best := -1
+	for _, re := range []*regexp.Regexp{ctimeRe, isoRe} {
+		if loc := re.FindStringIndex(line); loc != nil {
+			if best == -1 || loc[0] < start {
+				if tt, k := Parse(line[loc[0]:loc[1]]); k {
+					t, start, end, ok = tt, loc[0], loc[1], true
+					best = loc[0]
+				}
+			}
 		}
 	}
-	if m := isoRe.FindString(line); m != "" {
-		if t, ok := Parse(m); ok {
-			return t, true
-		}
-	}
-	return time.Time{}, false
+	return t, start, end, ok
 }
 
 // Format renders t in the canonical SIEM layout (RFC3339, UTC).

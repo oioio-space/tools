@@ -48,10 +48,12 @@ forensic <command> -h   # command-specific flags
 ### `regripper` — RegRipper (rip.pl) parser
 
 Parses the free-form text emitted by [RegRipper](https://github.com/keydet89/RegRipper3.0)
-(`rip.pl` / `rip.exe`) into structured records. RegRipper prints contextual
-state once (the plugin, the registry key, the key's `LastWrite` time) and then
-references it implicitly; this parser carries that state forward and emits one
-record per meaningful line, each stamped with the best timestamp available.
+(`rip.pl` / `rip.exe`) into structured records. Almost every plugin shares one
+shape: an **anchor** line — a registry key path or a timestamp — followed by one
+or more lines describing it (values, entries, a `LastWrite` time). The parser
+groups each anchor together with its following lines into a **single event
+record**, so one JSONL line is one whole event (timestamp + message), not one
+physical text line.
 
 **Timestamps** from every supported plugin format — Perl `ctime`
 (`Wed Nov 25 20:00:00 2015 (UTC)`), ISO variants, offset-bearing RFC3339 — are
@@ -90,13 +92,13 @@ forensic regripper -input rip.txt -format json -pretty -sort -timestamp -plugin 
 
 | Field        | Description                                                        |
 |--------------|--------------------------------------------------------------------|
-| `timestamp`  | RFC3339/UTC; the line's own time, else the key's `LastWrite`       |
-| `type`       | `plugin`, `key`, `lastwrite`, `event` or `info`                    |
-| `plugin`     | RegRipper plugin the line belongs to                               |
+| `timestamp`  | RFC3339/UTC; the event's own time, else the key's `LastWrite`      |
+| `type`       | `key` (key anchor), `event` (timestamp anchor) or `info`           |
+| `plugin`     | RegRipper plugin the event belongs to                             |
 | `key_path`   | registry key in scope                                              |
-| `last_write` | `LastWrite` time of the current key (RFC3339/UTC)                  |
-| `line`       | 1-based line number in the input                                   |
-| `message`    | the raw source line (never dropped)                                |
+| `last_write` | `LastWrite` time of the enclosing key (RFC3339/UTC)               |
+| `line`       | 1-based line number where the event's anchor starts               |
+| `message`    | the event body (following lines joined; never dropped)            |
 
 ## Test
 
