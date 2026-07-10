@@ -46,8 +46,8 @@ LastWrite Time Thu Aug 20 12:34:56 2020 (UTC)
 	if r.Plugin != "recentdocs" {
 		t.Errorf("plugin = %q, want recentdocs", r.Plugin)
 	}
-	if r.Timestamp != "2020-08-20T12:34:56Z" {
-		t.Errorf("timestamp = %q, want key LastWrite", r.Timestamp)
+	if r.Datetime != "2020-08-20T12:34:56Z" {
+		t.Errorf("timestamp = %q, want key LastWrite", r.Datetime)
 	}
 	if r.Message != "1 = report.docx\n2 = budget.xlsx" {
 		t.Errorf("message = %q, want the two values joined", r.Message)
@@ -72,8 +72,8 @@ Wed Nov 25 20:00:00 2015 Z
 	if r.Type != TypeEvent {
 		t.Errorf("type = %q, want event", r.Type)
 	}
-	if r.Timestamp != "2015-11-25T20:00:00Z" {
-		t.Errorf("timestamp = %q", r.Timestamp)
+	if r.Datetime != "2015-11-25T20:00:00Z" {
+		t.Errorf("timestamp = %q", r.Datetime)
 	}
 	want := "C:\\Windows\\notepad.exe (3)\nadditional detail"
 	if r.Message != want {
@@ -93,8 +93,8 @@ Thu Aug 20 12:34:56 2020 (UTC)  C:\Users\bob\Desktop
 	if r == nil {
 		t.Fatal("desktop record not found")
 	}
-	if r.Timestamp != "2020-08-20T12:34:56Z" {
-		t.Errorf("timestamp = %q", r.Timestamp)
+	if r.Datetime != "2020-08-20T12:34:56Z" {
+		t.Errorf("timestamp = %q", r.Datetime)
 	}
 	if r.Message != `C:\Users\bob\Desktop` {
 		t.Errorf("message = %q, want the path only", r.Message)
@@ -141,8 +141,8 @@ Fri Jan 18 00:38:13 2008Z
 	}
 	// The service and all its fields collapse into one timestamped event.
 	svc := recs[1]
-	if svc.Timestamp != "2008-01-18T00:38:13Z" {
-		t.Errorf("service timestamp = %q", svc.Timestamp)
+	if svc.Datetime != "2008-01-18T00:38:13Z" {
+		t.Errorf("service timestamp = %q", svc.Datetime)
 	}
 	for _, want := range []string{"Name      = MSKSSRV", "ImagePath = system32\\drivers\\MSKSSRV.sys", "Type      = Kernel driver"} {
 		if !strings.Contains(svc.Message, want) {
@@ -167,14 +167,14 @@ Account Created : Wed Mar 28 09:00:00 2018 Z
 	if len(recs) != 2 {
 		t.Fatalf("want 2 records, got %d: %+v", len(recs), recs)
 	}
-	if recs[0].Timestamp != "2018-03-27T12:13:26Z" {
-		t.Errorf("admin timestamp = %q", recs[0].Timestamp)
+	if recs[0].Datetime != "2018-03-27T12:13:26Z" {
+		t.Errorf("admin timestamp = %q", recs[0].Datetime)
 	}
 	if !strings.Contains(recs[0].Message, "Username        : Administrator [500]") {
 		t.Errorf("admin record missing username line: %q", recs[0].Message)
 	}
-	if recs[1].Timestamp != "2018-03-28T09:00:00Z" {
-		t.Errorf("guest timestamp = %q", recs[1].Timestamp)
+	if recs[1].Datetime != "2018-03-28T09:00:00Z" {
+		t.Errorf("guest timestamp = %q", recs[1].Datetime)
 	}
 }
 
@@ -189,8 +189,8 @@ LastWrite Time Wed Nov 25 20:07:09 2015 (UTC)
 		t.Fatalf("want 1 record, got %d", len(recs))
 	}
 	r := recs[0]
-	if r.Timestamp != "2015-11-25T20:07:09Z" {
-		t.Errorf("timestamp = %q", r.Timestamp)
+	if r.Datetime != "2015-11-25T20:07:09Z" {
+		t.Errorf("timestamp = %q", r.Datetime)
 	}
 	if r.Date != "2015-11-25" {
 		t.Errorf("date = %q, want 2015-11-25", r.Date)
@@ -208,6 +208,26 @@ func TestSplitFieldsEmptyWithoutTimestamp(t *testing.T) {
 	}
 	if recs[0].Date != "" || recs[0].Time != "" {
 		t.Errorf("expected empty date/time, got %q / %q", recs[0].Date, recs[0].Time)
+	}
+}
+
+// timestamp_desc labels the datetime source, as Timesketch expects.
+func TestTimestampDesc(t *testing.T) {
+	const in = `Software\Key
+LastWrite Time Wed Nov 25 20:07:09 2015 (UTC)
+  value
+
+2016-01-02 03:04:05Z  some entry
+`
+	recs := parse(t, in)
+	if len(recs) != 2 {
+		t.Fatalf("want 2 records, got %d: %+v", len(recs), recs)
+	}
+	if recs[0].TimestampDesc != descLastWrite {
+		t.Errorf("key desc = %q, want %q", recs[0].TimestampDesc, descLastWrite)
+	}
+	if recs[1].TimestampDesc != descTimestamp {
+		t.Errorf("event desc = %q, want %q", recs[1].TimestampDesc, descTimestamp)
 	}
 }
 

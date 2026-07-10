@@ -24,10 +24,13 @@ import (
 
 // Record is a single normalized event extracted from rip.pl output.
 type Record struct {
-	// Timestamp is the full RFC3339/UTC value, ready for SIEM ingestion. For a
-	// key event it is the key's LastWrite time; for a timestamp event it is the
-	// event's own time.
-	Timestamp string `json:"timestamp,omitempty"`
+	// Datetime is the full RFC3339/UTC value. It uses the field name Timesketch
+	// expects for its ISO-8601 event time. For a key event it is the key's
+	// LastWrite time; for a timestamp event it is the event's own time.
+	Datetime string `json:"datetime,omitempty"`
+	// TimestampDesc labels what the datetime represents (Timesketch's
+	// timestamp_desc), e.g. "LastWrite Time".
+	TimestampDesc string `json:"timestamp_desc,omitempty"`
 	// Date and Time are the same instant split into separate UTC fields
 	// (YYYY-MM-DD and HH:MM:SS) for tools/pipelines that index them apart.
 	Date string `json:"date,omitempty"`
@@ -59,6 +62,12 @@ const (
 	TypeInfo  = "info"  // free-standing text with no timestamp anchor
 )
 
+// timestamp_desc values (Timesketch labels for the datetime's meaning).
+const (
+	descLastWrite = "LastWrite Time"     // time came from a key's LastWrite
+	descTimestamp = "Registry Timestamp" // time came from a value/entry line
+)
+
 // Layouts for the split Date and Time fields (both UTC).
 const (
 	dateLayout = "2006-01-02"
@@ -71,13 +80,13 @@ func (r Record) parsedTS() (time.Time, bool) { return r.ts, r.hasTS }
 
 // CSVHeader returns the CSV column order for Record.
 func (Record) CSVHeader() []string {
-	return []string{"timestamp", "date", "time", "type", "plugin", "key_path", "last_write", "line", "message"}
+	return []string{"datetime", "timestamp_desc", "date", "time", "type", "plugin", "key_path", "last_write", "line", "message"}
 }
 
 // CSVRow returns the CSV values for Record, aligned with CSVHeader.
 func (r Record) CSVRow() []string {
 	return []string{
-		r.Timestamp, r.Date, r.Time, r.Type, r.Plugin, r.KeyPath, r.LastWrite,
+		r.Datetime, r.TimestampDesc, r.Date, r.Time, r.Type, r.Plugin, r.KeyPath, r.LastWrite,
 		strconv.Itoa(r.Line), r.Message,
 	}
 }
@@ -107,6 +116,7 @@ type pending struct {
 	ts     time.Time
 	hasTS  bool
 	tsStr  string
+	tsDesc string
 	plugin string
 	key    string
 	last   string
@@ -150,15 +160,16 @@ func Parse(r io.Reader) ([]Record, error) {
 			return
 		}
 		rec := Record{
-			Timestamp: p.tsStr,
-			Type:      p.recordType(),
-			Plugin:    p.plugin,
-			KeyPath:   p.key,
-			LastWrite: p.last,
-			Message:   strings.Join(p.msg, "\n"),
-			Line:      p.line,
-			ts:        p.ts,
-			hasTS:     p.hasTS,
+			Datetime:      p.tsStr,
+			TimestampDesc: p.tsDesc,
+			Type:          p.recordType(),
+			Plugin:        p.plugin,
+			KeyPath:       p.key,
+			LastWrite:     p.last,
+			Message:       strings.Join(p.msg, "\n"),
+			Line:          p.line,
+			ts:            p.ts,
+			hasTS:         p.hasTS,
 		}
 		if p.hasTS {
 			rec.Date = p.ts.Format(dateLayout)
@@ -195,7 +206,7 @@ func Parse(r io.Reader) ([]Record, error) {
 				if p.active {
 					p.last = lastStr
 					if !p.hasTS {
-						p.ts, p.hasTS, p.tsStr = t, true, lastStr
+						p.ts, p.hasTS, p.tsStr, p.tsDesc = t, true, lastStr, descLastWrite
 					}
 				}
 				continue
@@ -225,7 +236,7 @@ func Parse(r io.Reader) ([]Record, error) {
 			flush()
 			p = pending{
 				active: true, plugin: plugin, key: keyPath, last: lastStr,
-				ts: t, hasTS: true, tsStr: timeparse.Format(t), line: lineNo,
+				ts: t, hasTS: true, tsStr: timeparse.Format(t), tsDesc: descTimestamp, line: lineNo,
 			}
 			if rest := stripLeadingTZ(strings.TrimSpace(trimmed[end:])); rest != "" {
 				p.msg = append(p.msg, rest)
@@ -235,16 +246,16 @@ func Parse(r io.Reader) ([]Record, error) {
 			// Continuation line of the current event.
 			p.msg = append(p.msg, trimmed)
 			if ok && !p.hasTS {
-				p.ts, p.hasTS, p.tsStr = t, true, timeparse.Format(t)
+				p.ts, p.hasTS, p.tsStr, p.tsDesc = t, true, timeparse.Format(t), descTimestamp
 			}
 
 		default:
 			// Free-standing line with no open event.
 			p = pending{active: true, plugin: plugin, key: keyPath, last: lastStr, line: lineNo, msg: []string{trimmed}}
 			if ok {
-				p.ts, p.hasTS, p.tsStr = t, true, timeparse.Format(t)
+				p.ts, p.hasTS, p.tsStr, p.tsDesc = t, true, timeparse.Format(t), descTimestamp
 			} else if lastHas {
-				p.ts, p.hasTS, p.tsStr = lastT, true, lastStr
+				p.ts, p.hasTS, p.tsStr, p.tsDesc = lastT, true, lastStr, descLastWrite
 			}
 		}
 	}

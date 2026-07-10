@@ -10,7 +10,7 @@ func mkRec(line int, ts string) Record {
 	r := Record{Line: line}
 	if ts != "" {
 		t, _ := time.Parse(time.RFC3339, ts)
-		r.ts, r.hasTS, r.Timestamp = t, true, ts
+		r.ts, r.hasTS, r.Datetime = t, true, ts
 	}
 	return r
 }

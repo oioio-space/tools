@@ -18,7 +18,7 @@ import (
 // version is shown in the top-level help and the `version` subcommand. This
 // default applies to a plain `go build`; the Makefile injects a git-derived,
 // auto-incrementing value via -ldflags "-X main.version=...".
-var version = "0.1.0-dev"
+var version = "0.2.0-dev"
 
 func buildRegistry() *command.Registry {
 	r := command.NewRegistry()

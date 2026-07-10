@@ -9,7 +9,7 @@ BINARY := forensic
 PKG    := ./cmd/forensic
 BINDIR := bin
 
-BASE    := 0.1
+BASE    := 0.2
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 COUNT   := $(shell git rev-list --count HEAD 2>/dev/null || echo 0)
 DIRTY   := $(shell test -n "$$(git status --porcelain 2>/dev/null)" && echo -dirty)

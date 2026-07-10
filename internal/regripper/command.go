@@ -32,13 +32,13 @@ Flags:
   -output  string   Output file (default "-" for stdout)
   -format  string   Output format: json, jsonl or csv (default "jsonl")
   -sort    string   Sort by field; prefix with '-' for descending.
-                    Keys: timestamp, plugin, key, line. Example: -sort -timestamp
+                    Keys: datetime, plugin, key, line. Example: -sort -datetime
   -plugin  string   Only emit records from this plugin (case-insensitive)
   -pretty           Pretty-print JSON (only with -format json)
 
 Examples:
   rip.pl -r NTUSER.DAT -p userassist | forensic regripper -format csv
-  forensic regripper -input rip.txt -format json -sort timestamp -pretty
+  forensic regripper -input rip.txt -format json -sort datetime -pretty
 `)
 }
 

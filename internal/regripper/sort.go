@@ -7,7 +7,7 @@ import (
 )
 
 // SortKeys lists the record fields records can be sorted by.
-var SortKeys = []string{"timestamp", "plugin", "key", "line"}
+var SortKeys = []string{"datetime", "plugin", "key", "line"}
 
 // Sort orders records in place by the given spec. The spec is a field name
 // optionally prefixed with '-' for descending order (e.g. "timestamp" or
@@ -43,7 +43,7 @@ func Sort(records []Record, spec string) error {
 
 func lessFunc(records []Record, field string) (func(i, j int) bool, error) {
 	switch field {
-	case "timestamp", "time", "ts":
+	case "datetime", "timestamp", "time", "ts":
 		return func(i, j int) bool {
 			ti, oki := records[i].parsedTS()
 			tj, okj := records[j].parsedTS()
