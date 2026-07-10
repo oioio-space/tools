@@ -79,8 +79,11 @@ var (
 	keyPathRe = regexp.MustCompile(`^[A-Za-z0-9{]\S*\\\S`)
 	// A filesystem drive path (e.g. "C:\Users\..."), which is data, not a key.
 	drivePathRe = regexp.MustCompile(`^[A-Za-z]:\\`)
-	// LastWrite lines, e.g. "LastWrite Time Wed Nov 25 20:00:00 2015 (UTC)".
-	lastWriteRe = regexp.MustCompile(`(?i)last\s*write`)
+	// LastWrite metadata lines, e.g. "LastWrite Time Wed Nov 25 20:00:00 2015
+	// (UTC)" or "LastWrite: ...". Anchored at the start so prose that merely
+	// mentions "LastWrite" (e.g. a plugin's own description) is not mistaken for
+	// one.
+	lastWriteRe = regexp.MustCompile(`(?i)^last\s*write`)
 	// Timezone tokens that may trail a bare timestamp on an anchor line.
 	leadingTZRe = regexp.MustCompile(`^(?:\(UTC\)|\(GMT\)|UTC|GMT|Z)(?:\s+|$)`)
 )
@@ -88,7 +91,7 @@ var (
 // pending accumulates the lines of the event currently being built.
 type pending struct {
 	active bool
-	typ    string
+	isKey  bool // anchored on a registry key path
 	ts     time.Time
 	hasTS  bool
 	tsStr  string
@@ -97,6 +100,20 @@ type pending struct {
 	last   string
 	msg    []string
 	line   int
+}
+
+// recordType derives the record Type from the pending event's final state, so a
+// line that only picks up a timestamp from a later continuation still lands as
+// an "event" rather than "info".
+func (p pending) recordType() string {
+	switch {
+	case p.isKey:
+		return TypeKey
+	case p.hasTS:
+		return TypeEvent
+	default:
+		return TypeInfo
+	}
 }
 
 // Parse reads rip.pl output from r and returns the extracted event records.
@@ -122,7 +139,7 @@ func Parse(r io.Reader) ([]Record, error) {
 		}
 		records = append(records, Record{
 			Timestamp: p.tsStr,
-			Type:      p.typ,
+			Type:      p.recordType(),
 			Plugin:    p.plugin,
 			KeyPath:   p.key,
 			LastWrite: p.last,
@@ -164,8 +181,10 @@ func Parse(r io.Reader) ([]Record, error) {
 						p.ts, p.hasTS, p.tsStr = t, true, lastStr
 					}
 				}
+				continue
 			}
-			continue
+			// "LastWrite" with no parseable time is prose, not metadata: fall
+			// through and treat it as normal content.
 		}
 
 		indented := strings.HasPrefix(raw, " ") || strings.HasPrefix(raw, "\t")
@@ -176,7 +195,7 @@ func Parse(r io.Reader) ([]Record, error) {
 			keyPath = trimmed
 			// A fresh key brings its own LastWrite next; drop the previous one.
 			lastStr, lastT, lastHas = "", time.Time{}, false
-			p = pending{active: true, typ: TypeKey, plugin: plugin, key: keyPath, line: lineNo}
+			p = pending{active: true, isKey: true, plugin: plugin, key: keyPath, line: lineNo}
 			continue
 		}
 
@@ -188,7 +207,7 @@ func Parse(r io.Reader) ([]Record, error) {
 		case anchor:
 			flush()
 			p = pending{
-				active: true, typ: TypeEvent, plugin: plugin, key: keyPath, last: lastStr,
+				active: true, plugin: plugin, key: keyPath, last: lastStr,
 				ts: t, hasTS: true, tsStr: timeparse.Format(t), line: lineNo,
 			}
 			if rest := stripLeadingTZ(strings.TrimSpace(trimmed[end:])); rest != "" {
@@ -206,12 +225,9 @@ func Parse(r io.Reader) ([]Record, error) {
 			// Free-standing line with no open event.
 			p = pending{active: true, plugin: plugin, key: keyPath, last: lastStr, line: lineNo, msg: []string{trimmed}}
 			if ok {
-				p.typ, p.ts, p.hasTS, p.tsStr = TypeEvent, t, true, timeparse.Format(t)
-			} else {
-				p.typ = TypeInfo
-				if lastHas {
-					p.ts, p.hasTS, p.tsStr = lastT, true, lastStr
-				}
+				p.ts, p.hasTS, p.tsStr = t, true, timeparse.Format(t)
+			} else if lastHas {
+				p.ts, p.hasTS, p.tsStr = lastT, true, lastStr
 			}
 		}
 	}

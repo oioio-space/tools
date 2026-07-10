@@ -118,6 +118,66 @@ p v.20200101
 	}
 }
 
+// Real 'services' plugin output: a timestamp anchor followed by indented
+// key=value fields. Also guards against the plugin's own description line
+// ("...by LastWrite times") being mistaken for a LastWrite metadata line.
+func TestRealServicesOutput(t *testing.T) {
+	const in = `ControlSet001\Services
+Lists services/drivers in Services key by LastWrite times
+
+Fri Jan 18 00:38:13 2008Z
+  Name      = MSKSSRV
+  Display   = Microsoft Streaming Service Proxy
+  ImagePath = system32\drivers\MSKSSRV.sys
+  Type      = Kernel driver
+`
+	recs := parse(t, in)
+	if len(recs) != 2 {
+		t.Fatalf("want 2 records, got %d: %+v", len(recs), recs)
+	}
+	// The description must survive (not swallowed as a LastWrite line).
+	if recs[0].Type != TypeKey || !strings.Contains(recs[0].Message, "Lists services/drivers") {
+		t.Errorf("key record lost its description: %+v", recs[0])
+	}
+	// The service and all its fields collapse into one timestamped event.
+	svc := recs[1]
+	if svc.Timestamp != "2008-01-18T00:38:13Z" {
+		t.Errorf("service timestamp = %q", svc.Timestamp)
+	}
+	for _, want := range []string{"Name      = MSKSSRV", "ImagePath = system32\\drivers\\MSKSSRV.sys", "Type      = Kernel driver"} {
+		if !strings.Contains(svc.Message, want) {
+			t.Errorf("service message missing %q; got %q", want, svc.Message)
+		}
+	}
+}
+
+// Real 'samparse' output: a block of column-0 "Field : value" lines with a
+// timestamp buried mid-line must collapse into one record per account and pick
+// up the Account Created time.
+func TestRealSamparseOutput(t *testing.T) {
+	const in = `Username        : Administrator [500]
+SID             : S-1-5-21-2734969515-1644526556-1039763013-500
+Account Created : Tue Mar 27 12:13:26 2018 Z
+Login Count     : 0
+
+Username        : Guest [501]
+Account Created : Wed Mar 28 09:00:00 2018 Z
+`
+	recs := parse(t, in)
+	if len(recs) != 2 {
+		t.Fatalf("want 2 records, got %d: %+v", len(recs), recs)
+	}
+	if recs[0].Timestamp != "2018-03-27T12:13:26Z" {
+		t.Errorf("admin timestamp = %q", recs[0].Timestamp)
+	}
+	if !strings.Contains(recs[0].Message, "Username        : Administrator [500]") {
+		t.Errorf("admin record missing username line: %q", recs[0].Message)
+	}
+	if recs[1].Timestamp != "2018-03-28T09:00:00Z" {
+		t.Errorf("guest timestamp = %q", recs[1].Timestamp)
+	}
+}
+
 func TestPluginBannerResetsContext(t *testing.T) {
 	const in = `Launching userassist v.20160528
 userassist v.20160528
