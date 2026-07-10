@@ -62,8 +62,8 @@ func (r *Registry) All() []Command {
 }
 
 // PrintHelp writes the top-level help listing to w.
-func (r *Registry) PrintHelp(w io.Writer, prog string) {
-	fmt.Fprintf(w, "%s - a collection of forensic parsers\n\n", prog)
+func (r *Registry) PrintHelp(w io.Writer, prog, version string) {
+	fmt.Fprintf(w, "%s %s - a collection of forensic parsers\n\n", prog, version)
 	fmt.Fprintf(w, "Usage:\n  %s <command> [flags]\n\n", prog)
 	fmt.Fprintln(w, "Commands:")
 	for _, c := range r.All() {
