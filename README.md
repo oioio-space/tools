@@ -75,10 +75,17 @@ Usage: forensic regripper [flags]
   -output  string   Output file (default "-" for stdout)
   -format  string   json | jsonl | csv (default "jsonl")
   -sort    string   Sort by field; prefix '-' for descending.
-                    Keys: timestamp, plugin, key, line
+                    Keys: datetime, plugin, key, line
   -plugin  string   Only emit records from this plugin (case-insensitive)
+  -all              Include non-event text lines (records without a timestamp)
   -pretty           Pretty-print JSON (with -format json)
 ```
+
+By default only timestamped **events** are emitted: RegRipper output is
+interleaved with headers, banners and description text that are not timeline
+events and carry no timestamp, so output effectively begins at the first
+timestamp. Key events are still kept — a key record takes its time from the
+following `LastWrite` line. Pass `-all` to keep the untimed text lines too.
 
 Records without a timestamp sort **after** timestamped ones (ascending), so the
 timeline stays clean at the top.

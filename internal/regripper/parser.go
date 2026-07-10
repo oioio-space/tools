@@ -149,8 +149,6 @@ func Parse(r io.Reader) ([]Record, error) {
 		plugin  string
 		keyPath string
 		lastStr string
-		lastT   time.Time
-		lastHas bool
 		p       pending
 		lineNo  int
 	)
@@ -193,7 +191,7 @@ func Parse(r io.Reader) ([]Record, error) {
 		// Plugin banner: new scope, no record of its own.
 		if m := pluginRe.FindStringSubmatch(trimmed); m != nil {
 			flush()
-			plugin, keyPath, lastStr, lastT, lastHas = m[1], "", "", time.Time{}, false
+			plugin, keyPath, lastStr = m[1], "", ""
 			continue
 		}
 
@@ -202,7 +200,7 @@ func Parse(r io.Reader) ([]Record, error) {
 		// a record and is kept out of the message body.
 		if lastWriteRe.MatchString(trimmed) {
 			if t, ok := timeparse.ExtractFirst(trimmed); ok {
-				lastStr, lastT, lastHas = timeparse.Format(t), t, true
+				lastStr = timeparse.Format(t)
 				if p.active {
 					p.last = lastStr
 					if !p.hasTS {
@@ -222,7 +220,7 @@ func Parse(r io.Reader) ([]Record, error) {
 			flush()
 			keyPath = trimmed
 			// A fresh key brings its own LastWrite next; drop the previous one.
-			lastStr, lastT, lastHas = "", time.Time{}, false
+			lastStr = ""
 			p = pending{active: true, isKey: true, plugin: plugin, key: keyPath, line: lineNo}
 			continue
 		}
@@ -250,12 +248,11 @@ func Parse(r io.Reader) ([]Record, error) {
 			}
 
 		default:
-			// Free-standing line with no open event.
+			// Free-standing line with no open event. A line without its own
+			// timestamp is not an event and gets no inherited time.
 			p = pending{active: true, plugin: plugin, key: keyPath, last: lastStr, line: lineNo, msg: []string{trimmed}}
 			if ok {
 				p.ts, p.hasTS, p.tsStr, p.tsDesc = t, true, timeparse.Format(t), descTimestamp
-			} else if lastHas {
-				p.ts, p.hasTS, p.tsStr, p.tsDesc = lastT, true, lastStr, descLastWrite
 			}
 		}
 	}

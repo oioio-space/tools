@@ -34,6 +34,9 @@ Flags:
   -sort    string   Sort by field; prefix with '-' for descending.
                     Keys: datetime, plugin, key, line. Example: -sort -datetime
   -plugin  string   Only emit records from this plugin (case-insensitive)
+  -all              Include non-event text lines (records without a timestamp).
+                    By default only timestamped events are emitted, so output
+                    starts at the first timestamp.
   -pretty           Pretty-print JSON (only with -format json)
 
 Examples:
@@ -53,6 +56,7 @@ func (c cmd) Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 		format  = fs.String("format", "jsonl", "output format: json, jsonl or csv")
 		sortBy  = fs.String("sort", "", "sort by field (prefix '-' for descending)")
 		plugin  = fs.String("plugin", "", "only emit records from this plugin")
+		all     = fs.Bool("all", false, "include non-event text lines (records without a timestamp)")
 		pretty  = fs.Bool("pretty", false, "pretty-print JSON output")
 	)
 	if err := fs.Parse(args); err != nil {
@@ -77,6 +81,12 @@ func (c cmd) Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 
 	if *plugin != "" {
 		records = filterByPlugin(records, *plugin)
+	}
+
+	// By default, drop text lines that carry no timestamp: they are headers and
+	// descriptions, not timeline events. -all keeps them.
+	if !*all {
+		records = Events(records)
 	}
 
 	if err := Sort(records, *sortBy); err != nil {
