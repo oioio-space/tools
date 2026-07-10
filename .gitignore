@@ -1,0 +1,8 @@
+# Build output
+/forensic
+/bin/
+*.exe
+
+# Test / scratch artifacts
+*.out
+*.tmp
